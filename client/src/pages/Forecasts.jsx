@@ -28,7 +28,7 @@ export default function Forecasts() {
   const [sources, setSources] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState('');
   const [selectedSource, setSelectedSource] = useState('');
-  const [startDate, setStartDate] = useState(dayjs().subtract(14, 'day').format('YYYY-MM-DD'));
+  const [startDate, setStartDate] = useState(dayjs().subtract(180, 'day').format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [activeTab, setActiveTab] = useState('comparison');
 
@@ -90,14 +90,15 @@ export default function Forecasts() {
   }
 
   async function loadForecasts() {
-    if (!selectedSource) return;
     setLoading(true);
     try {
       const params = {
-        source_id: selectedSource,
         start_date: startDate,
         end_date: endDate,
       };
+      if (selectedSource && !isNaN(Number(selectedSource))) {
+        params.source_id = selectedSource;
+      }
       const list = await api.forecasts.list(params);
       setForecastList(list);
     } catch (e) {
@@ -162,6 +163,7 @@ export default function Forecasts() {
       alert('预报录入成功');
       resetForecastForm();
       loadComparison();
+      if (activeTab === 'list') loadForecasts();
     } catch (e) {
       console.error(e);
     }
@@ -183,6 +185,7 @@ export default function Forecasts() {
       const result = await api.forecasts.simulate(payload);
       alert(`模拟完成，生成 ${result.inserted} 条预报，覆盖 ${result.dates_covered} 天`);
       loadComparison();
+      if (activeTab === 'list') loadForecasts();
     } catch (e) {
       console.error(e);
     } finally {

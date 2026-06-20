@@ -111,16 +111,16 @@ function buildAccuracyData(devId, startDate, endDate, sourceId, period) {
       avg_temp_bias: db.round(db.avg(vals.map(v => v.tempBias))),
       avg_temp_high_bias: db.round(db.avg(vals.map(v => v.tempHighBias))),
       avg_temp_low_bias: db.round(db.avg(vals.map(v => v.tempLowBias))),
-      temp_accuracy: total > 0 ? db.round(vals.filter(v => v.tempCorrect).length * 100 / total, 1) : null,
-      precip_accuracy: total > 0 ? db.round(vals.filter(v => v.precipCorrect).length * 100 / total, 1) : null,
+      temp_accuracy: total > 0 ? db.round(vals.filter(v => v.tempCorrect).length / total, 4) : null,
+      precip_accuracy: total > 0 ? db.round(vals.filter(v => v.precipCorrect).length / total, 4) : null,
       avg_precip_bias: db.round(db.avg(vals.map(v => v.precipBias)), 1),
-      wind_accuracy: total > 0 ? db.round(vals.filter(v => v.windCorrect).length * 100 / total, 1) : null,
+      wind_accuracy: total > 0 ? db.round(vals.filter(v => v.windCorrect).length / total, 4) : null,
       avg_wind_bias: db.round(db.avg(vals.map(v => v.windBias))),
       overall_accuracy: total > 0 ? db.round((
-        vals.filter(v => v.tempCorrect).length * 100 / total +
-        vals.filter(v => v.precipCorrect).length * 100 / total +
-        vals.filter(v => v.windCorrect).length * 100 / total
-      ) / 3, 1) : null
+        vals.filter(v => v.tempCorrect).length / total +
+        vals.filter(v => v.precipCorrect).length / total +
+        vals.filter(v => v.windCorrect).length / total
+      ) / 3, 4) : null
     };
   }).sort((a, b) => {
     const d = a.period.localeCompare(b.period);
@@ -279,7 +279,7 @@ router.get('/dashboard', (req, res) => {
   
   const sourceStatsArr = Object.values(sourceStats).map(s => ({
     source_name: s.src,
-    precip_accuracy: s.precipTotal > 0 ? db.round(s.precipCorrect * 100 / s.precipTotal, 1) : null,
+    precip_accuracy: s.precipTotal > 0 ? db.round(s.precipCorrect / s.precipTotal, 4) : null,
     avg_wind_bias: db.round(db.avg(s.windBiases), 2)
   }));
   

@@ -51,35 +51,43 @@ export default function EventDetail() {
           setDevice(dev);
         }
 
-        const eventData = ev.source_stats || [];
-        const mockSources = eventData.length ? eventData.map(s => s.source_name) : ['中国气象局', '中央气象台', '彩云天气', '墨迹天气'];
-        const stats = mockSources.map((source, idx) => (
-          eventData[idx]
-            ? { source, temp_accuracy: eventData[idx].temp_accuracy / 100, precip_accuracy: eventData[idx].precip_accuracy / 100, wind_accuracy: eventData[idx].wind_accuracy / 100 }
-            : { source, temp_accuracy: 0.6 + Math.random() * 0.35, precip_accuracy: 0.5 + Math.random() * 0.45, wind_accuracy: 0.55 + Math.random() * 0.4 }
-        ));
+        const stats = (ev.forecast_stats || []).map(s => ({
+          source: s.source_name,
+          temp_accuracy: Number(s.temp_accuracy) || 0,
+          precip_accuracy: Number(s.precip_accuracy) || 0,
+          wind_accuracy: Number(s.wind_accuracy) || 0,
+          overall_accuracy: Number(s.overall_accuracy) || 0,
+          total: s.total || 0,
+          temp_correct: s.temp_correct || 0,
+          precip_correct: s.precip_correct || 0,
+          wind_correct: s.wind_correct || 0
+        }));
         setSourceStats(stats);
 
-        if (ev.start_time && ev.end_time) {
-          const start = dayjs(ev.start_time);
-          const end = dayjs(ev.end_time);
-          const days = [];
-          let current = start;
-          while (current.isBefore(end) || current.isSame(end, 'day')) {
-            days.push({
-              date: current.format('YYYY-MM-DD'),
-              obs_temp: (15 + Math.random() * 25).toFixed(1),
-              fc_temp: (15 + Math.random() * 25).toFixed(1),
-              obs_precip: (Math.random() * 50).toFixed(1),
-              fc_precip: (Math.random() * 50).toFixed(1),
-              obs_wind: (Math.random() * 20).toFixed(1),
-              fc_wind: (Math.random() * 20).toFixed(1),
-            });
-            current = current.add(1, 'day');
-            if (days.length > 31) break;
+        const fcByDate = {};
+        (ev.forecasts || []).forEach(f => {
+          const d = f.target_date;
+          if (!fcByDate[d]) {
+            fcByDate[d] = {
+              date: d,
+              obs_temp_max: f.actual_temp_max,
+              obs_temp_min: f.actual_temp_min,
+              obs_precip: f.actual_precipitation,
+              obs_wind: f.actual_wind_max,
+              sources: []
+            };
           }
-          setDailyComparison(days);
-        }
+          fcByDate[d].sources.push({
+            source: f.source_name,
+            fc_temp_high: f.temp_high,
+            fc_temp_low: f.temp_low,
+            fc_precip: f.precipitation_amount,
+            fc_precip_prob: f.precipitation_prob,
+            fc_wind: f.wind_speed
+          });
+        });
+        const days = Object.values(fcByDate).sort((a, b) => a.date.localeCompare(b.date));
+        setDailyComparison(days);
       } catch (err) {
         console.error(err);
       } finally {
@@ -295,17 +303,24 @@ export default function EventDetail() {
                 <tr>
                   <td colSpan="7" className="text-center py-8 text-slate-500">暂无对比数据</td>
                 </tr>
-              ) : dailyComparison.map((day, idx) => (
-                <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">{day.date}</td>
-                  <td className="px-4 py-3 text-center text-slate-700 border-l border-slate-100">{day.obs_temp}</td>
-                  <td className="px-4 py-3 text-center text-primary-600 font-medium">{day.fc_temp}</td>
-                  <td className="px-4 py-3 text-center text-slate-700 border-l border-slate-100">{day.obs_precip}</td>
-                  <td className="px-4 py-3 text-center text-primary-600 font-medium">{day.fc_precip}</td>
-                  <td className="px-4 py-3 text-center text-slate-700 border-l border-slate-100">{day.obs_wind}</td>
-                  <td className="px-4 py-3 text-center text-primary-600 font-medium">{day.fc_wind}</td>
-                </tr>
-              ))}
+              ) : dailyComparison.map((day, idx) => {
+                const src = day.sources && day.sources[0];
+                return (
+                  <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-4 py-3 font-medium text-slate-800">{day.date}</td>
+                    <td className="px-4 py-3 text-center text-slate-700 border-l border-slate-100">
+                      {day.obs_temp_min != null ? `${day.obs_temp_min}~${day.obs_temp_max}` : (day.obs_temp_max ?? '-')}
+                    </td>
+                    <td className="px-4 py-3 text-center text-primary-600 font-medium">
+                      {src ? (src.fc_temp_low != null ? `${src.fc_temp_low}~${src.fc_temp_high}` : (src.fc_temp_high ?? '-')) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-center text-slate-700 border-l border-slate-100">{day.obs_precip != null ? day.obs_precip : '-'}</td>
+                    <td className="px-4 py-3 text-center text-primary-600 font-medium">{src ? (src.fc_precip != null ? src.fc_precip : '-') : '-'}</td>
+                    <td className="px-4 py-3 text-center text-slate-700 border-l border-slate-100">{day.obs_wind != null ? day.obs_wind : '-'}</td>
+                    <td className="px-4 py-3 text-center text-primary-600 font-medium">{src ? (src.fc_wind != null ? src.fc_wind : '-') : '-'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -78,10 +78,10 @@ router.get('/:id', (req, res) => {
   
   const forecast_stats = Object.values(stats).map(s => ({
     ...s,
-    temp_accuracy: s.total > 0 ? db.round(s.temp_correct * 100 / s.total) : 0,
-    precip_accuracy: s.total > 0 ? db.round(s.precip_correct * 100 / s.total) : 0,
-    wind_accuracy: s.total > 0 ? db.round(s.wind_correct * 100 / s.total) : 0,
-    overall_accuracy: s.total > 0 ? db.round(((s.temp_correct + s.precip_correct + s.wind_correct) / (s.total * 3)) * 100) : 0
+    temp_accuracy: s.total > 0 ? db.round(s.temp_correct / s.total, 4) : 0,
+    precip_accuracy: s.total > 0 ? db.round(s.precip_correct / s.total, 4) : 0,
+    wind_accuracy: s.total > 0 ? db.round(s.wind_correct / s.total, 4) : 0,
+    overall_accuracy: s.total > 0 ? db.round((s.temp_correct + s.precip_correct + s.wind_correct) / (s.total * 3), 4) : 0
   }));
   
   const sortedForecasts = forecasts.sort((a, b) => {

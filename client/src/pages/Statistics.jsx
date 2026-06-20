@@ -165,7 +165,7 @@ export default function Statistics() {
   };
 
   const generateMockSourceComparison = () => {
-    const srcList = sources.length > 0 ? sources : ['中央气象台', '墨迹天气', '彩云天气', '和风天气'];
+    const srcList = sources.length > 0 ? sources : ['中国气象局', '中央气象台', '墨迹天气', '彩云天气'];
     return srcList.map((s, i) => ({
       source: typeof s === 'string' ? s : (s.name || s.source || `来源${i + 1}`),
       temp_accuracy: 0.65 + Math.random() * 0.3,
@@ -397,10 +397,10 @@ export default function Statistics() {
               ))}
               {sources.length === 0 && (
                 <>
+                  <option value="中国气象局">中国气象局</option>
                   <option value="中央气象台">中央气象台</option>
                   <option value="墨迹天气">墨迹天气</option>
                   <option value="彩云天气">彩云天气</option>
-                  <option value="和风天气">和风天气</option>
                 </>
               )}
             </select>

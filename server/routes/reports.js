@@ -3,6 +3,15 @@ const db = require('../db');
 
 const router = express.Router();
 
+let jsPDF;
+let autoTable;
+try {
+  jsPDF = require('jspdf').jsPDF;
+  autoTable = require('jspdf-autotable').default || require('jspdf-autotable');
+} catch (e) {
+  console.warn('PDF依赖加载失败:', e.message);
+}
+
 router.get('/yearly-csv', (req, res) => {
   const { device_id, year } = req.query;
   if (!device_id || !year) return res.status(400).json({ error: '设备ID和年份为必填项' });
@@ -135,8 +144,9 @@ function getAccuracyMonthly(devId, startDate, endDate, year) {
 
 router.get('/yearly-pdf', async (req, res) => {
   try {
-    const { jsPDF } = await import('jspdf');
-    const { default: autoTable } = await import('jspdf-autotable');
+    if (!jsPDF || !autoTable) {
+      return res.status(500).json({ error: 'PDF生成依赖未正确加载，请检查jspdf和jspdf-autotable是否已安装' });
+    }
     
     const { device_id, year } = req.query;
     if (!device_id || !year) return res.status(400).json({ error: '设备ID和年份为必填项' });
