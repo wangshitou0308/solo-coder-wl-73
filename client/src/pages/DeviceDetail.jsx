@@ -12,6 +12,22 @@ const emptyCalib = {
   notes: '',
 };
 
+const ALL_SENSORS = [
+  { key: 'temperature', label: '温度', icon: '🌡️', unit: '°C' },
+  { key: 'humidity', label: '湿度', icon: '💧', unit: '%' },
+  { key: 'pressure', label: '气压', icon: '🎯', unit: 'hPa' },
+  { key: 'wind_speed', label: '风速', icon: '💨', unit: 'm/s' },
+  { key: 'wind_direction', label: '风向', icon: '🧭', unit: '°' },
+  { key: 'precipitation', label: '降水', icon: '🌧️', unit: 'mm' },
+  { key: 'uv_index', label: '紫外线', icon: '☀️', unit: '' },
+  { key: 'solar_radiation', label: '太阳辐射', icon: '🌞', unit: 'W/m²' },
+  { key: 'visibility', label: '能见度', icon: '👁️', unit: 'km' },
+  { key: 'pm25', label: 'PM2.5', icon: '🌫️', unit: 'μg/m³' },
+  { key: 'pm10', label: 'PM10', icon: '💨', unit: 'μg/m³' },
+  { key: 'dew_point', label: '露点', icon: '💦', unit: '°C' },
+  { key: 'feels_like', label: '体感温度', icon: '🌡️', unit: '°C' },
+];
+
 export default function DeviceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -174,6 +190,102 @@ export default function DeviceDetail() {
               <p className={`text-slate-800 ${row.mono ? 'font-mono text-sm' : ''}`}>{row.value}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <span>🔌</span>传感器能力矩阵
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">设备支持的气象指标和性能规格</p>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4">
+            {ALL_SENSORS.map(sensor => {
+              const hasCapability = device.model?.toUpperCase().includes('PRO') || 
+                                   device.model?.toUpperCase().includes('2902C') ||
+                                   (sensor.key === 'uv_index' && device.model?.toUpperCase().includes('PRO')) ||
+                                   (sensor.key !== 'uv_index' && sensor.key !== 'solar_radiation' && 
+                                    sensor.key !== 'visibility' && sensor.key !== 'pm25' && sensor.key !== 'pm10');
+              
+              const isAdvanced = ['uv_index', 'solar_radiation', 'visibility', 'pm25', 'pm10', 'dew_point', 'feels_like'].includes(sensor.key);
+              
+              return (
+                <div
+                  key={sensor.key}
+                  className={`relative p-4 rounded-xl border-2 transition-all ${
+                    hasCapability
+                      ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 hover:border-green-400 hover:shadow-md'
+                      : 'bg-slate-50 border-slate-200 opacity-60'
+                  }`}
+                >
+                  {isAdvanced && (
+                    <span className="absolute -top-1 -right-1 text-xs bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-medium">
+                      高级
+                    </span>
+                  )}
+                  <div className="text-center">
+                    <div className="text-3xl mb-2">{sensor.icon}</div>
+                    <div className={`text-sm font-medium ${
+                      hasCapability ? 'text-slate-800' : 'text-slate-400'
+                    }`}>
+                      {sensor.label}
+                    </div>
+                    {sensor.unit && (
+                      <div className="text-xs text-slate-400 mt-1">{sensor.unit}</div>
+                    )}
+                    <div className={`mt-2 text-xs font-medium ${
+                      hasCapability ? 'text-green-600' : 'text-slate-400'
+                    }`}>
+                      {hasCapability ? '✓ 支持' : '✗ 不支持'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <h4 className="text-sm font-medium text-slate-700 mb-2">能力统计</h4>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-green-500 rounded-full"></span>
+                <span className="text-sm text-slate-600">
+                  已支持: {ALL_SENSORS.filter(s => 
+                    s.key === 'uv_index' ? device.model?.toUpperCase().includes('PRO') :
+                    s.key === 'solar_radiation' ? device.model?.toUpperCase().includes('PRO') :
+                    s.key === 'visibility' ? device.model?.toUpperCase().includes('PRO') :
+                    s.key === 'pm25' ? device.model?.toUpperCase().includes('PRO') :
+                    s.key === 'pm10' ? device.model?.toUpperCase().includes('PRO') :
+                    true
+                  ).length} / {ALL_SENSORS.length} 项
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-amber-400 rounded-full"></span>
+                <span className="text-sm text-slate-600">
+                  高级指标: {ALL_SENSORS.filter(s => 
+                    ['uv_index', 'solar_radiation', 'visibility', 'pm25', 'pm10', 'dew_point', 'feels_like'].includes(s.key) &&
+                    (device.model?.toUpperCase().includes('PRO') || ['dew_point', 'feels_like'].includes(s.key))
+                  ).length} / 7 项
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-primary-500 rounded-full"></span>
+                <span className="text-sm text-slate-600">
+                  综合能力评分: {Math.round(ALL_SENSORS.filter(s => 
+                    s.key === 'uv_index' ? device.model?.toUpperCase().includes('PRO') :
+                    s.key === 'solar_radiation' ? device.model?.toUpperCase().includes('PRO') :
+                    s.key === 'visibility' ? device.model?.toUpperCase().includes('PRO') :
+                    s.key === 'pm25' ? device.model?.toUpperCase().includes('PRO') :
+                    s.key === 'pm10' ? device.model?.toUpperCase().includes('PRO') :
+                    true
+                  ).length / ALL_SENSORS.length * 100)} 分
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

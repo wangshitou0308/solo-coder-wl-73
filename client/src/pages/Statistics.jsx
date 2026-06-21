@@ -56,9 +56,20 @@ const PERIOD_OPTIONS = [
   { value: 'daily', label: '按日' },
 ];
 
+const EXTENDED_METRICS = [
+  { key: 'uv_index', label: '紫外线指数', unit: '', icon: '☀️' },
+  { key: 'solar_radiation', label: '太阳辐射', unit: 'W/m²', icon: '🌞' },
+  { key: 'visibility', label: '能见度', unit: 'km', icon: '👁️' },
+  { key: 'pm25', label: 'PM2.5', unit: 'μg/m³', icon: '🌫️' },
+  { key: 'pm10', label: 'PM10', unit: 'μg/m³', icon: '💨' },
+  { key: 'dew_point', label: '露点温度', unit: '°C', icon: '💧' },
+  { key: 'feels_like', label: '体感温度', unit: '°C', icon: '🌡️' },
+];
+
 const TAB_OPTIONS = [
   { value: 'period', label: '月季年统计', icon: '📊' },
   { value: 'source', label: '来源对比', icon: '⚖️' },
+  { value: 'extended', label: '扩展指标趋势', icon: '📈' },
   { value: 'export', label: '导出报告', icon: '📥' },
 ];
 
@@ -78,6 +89,8 @@ export default function Statistics() {
   const [accuracyData, setAccuracyData] = useState([]);
   const [sourceComparisonData, setSourceComparisonData] = useState([]);
   const [trendData, setTrendData] = useState([]);
+  const [extendedMetricData, setExtendedMetricData] = useState([]);
+  const [selectedExtendedMetric, setSelectedExtendedMetric] = useState('uv_index');
   const [loading, setLoading] = useState(false);
 
   const yearOptions = useMemo(() => {
@@ -109,6 +122,11 @@ export default function Statistics() {
     fetchStatsData();
   }, [selectedDevice, selectedSource, selectedYear, period, activeTab]);
 
+  useEffect(() => {
+    if (!selectedDevice || activeTab !== 'extended') return;
+    fetchExtendedMetricData();
+  }, [selectedDevice, selectedExtendedMetric, selectedYear, activeTab]);
+
   const fetchStatsData = async () => {
     setLoading(true);
     try {
@@ -129,6 +147,25 @@ export default function Statistics() {
         const comp = await api.stats.sourceComparison(params).catch(() => []);
         setSourceComparisonData(Array.isArray(comp) ? comp : []);
       }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchExtendedMetricData = async () => {
+    if (!selectedDevice) return;
+    setLoading(true);
+    try {
+      const params = {
+        device_id: selectedDevice,
+        start_date: `${selectedYear}-01-01`,
+        end_date: `${selectedYear}-12-31`,
+        frequency: 'daily',
+      };
+      const result = await api.observations.daily(params).catch(() => []);
+      setExtendedMetricData(Array.isArray(result) ? result : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -555,6 +592,226 @@ export default function Statistics() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!loading && activeTab === 'extended' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex flex-wrap items-center gap-4 mb-6">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">选择指标</label>
+                <select
+                  value={selectedExtendedMetric}
+                  onChange={e => setSelectedExtendedMetric(e.target.value)}
+                  className="px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-sm"
+                >
+                  {EXTENDED_METRICS.map(m => (
+                    <option key={m.key} value={m.key}>
+                      {m.icon} {m.label} ({m.unit})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {EXTENDED_METRICS.map((m, i) => {
+                const avgKey = `${m.key}_avg`;
+                const maxKey = `${m.key}_max`;
+                const minKey = `${m.key}_min`;
+                
+                const values = extendedMetricData
+                  .map(d => d[avgKey])
+                  .filter(v => v != null && !isNaN(v));
+                
+                const avg = values.length 
+                  ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) 
+                  : '-';
+                
+                const maxVals = extendedMetricData
+                  .map(d => d[maxKey])
+                  .filter(v => v != null && !isNaN(v));
+                const max = maxVals.length ? Math.max(...maxVals).toFixed(1) : '-';
+                
+                const minVals = extendedMetricData
+                  .map(d => d[minKey])
+                  .filter(v => v != null && !isNaN(v));
+                const min = minVals.length ? Math.min(...minVals).toFixed(1) : '-';
+
+                return (
+                  <div 
+                    key={m.key}
+                    className={`p-4 rounded-xl transition-all cursor-pointer ${
+                      selectedExtendedMetric === m.key 
+                        ? 'bg-primary-50 border-2 border-primary-300' 
+                        : 'bg-slate-50 border border-slate-200 hover:bg-slate-100'
+                    }`}
+                    onClick={() => setSelectedExtendedMetric(m.key)}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl">{m.icon}</span>
+                      <span className="text-sm font-medium text-slate-700">{m.label}</span>
+                    </div>
+                    <div className="text-2xl font-bold text-slate-800">
+                      {avg} <span className="text-sm font-normal text-slate-500">{m.unit}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      最高: {max} / 最低: {min}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span>{EXTENDED_METRICS.find(m => m.key === selectedExtendedMetric)?.icon}</span>
+              {EXTENDED_METRICS.find(m => m.key === selectedExtendedMetric)?.label} 年度变化趋势
+            </h2>
+            <div className="h-80">
+              {extendedMetricData.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-slate-400">
+                  暂无扩展指标数据
+                </div>
+              ) : (
+                <Line 
+                  data={{
+                    labels: extendedMetricData.map(d => d.date),
+                    datasets: [
+                      {
+                        label: `${EXTENDED_METRICS.find(m => m.key === selectedExtendedMetric)?.label} 平均值`,
+                        data: extendedMetricData.map(d => d[`${selectedExtendedMetric}_avg`]),
+                        borderColor: CHART_COLORS[0],
+                        backgroundColor: CHART_COLORS[0].replace('0.8', '0.1'),
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        borderWidth: 2,
+                      },
+                      {
+                        label: '最高值',
+                        data: extendedMetricData.map(d => d[`${selectedExtendedMetric}_max`]),
+                        borderColor: CHART_COLORS[2],
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 1.5,
+                      },
+                      {
+                        label: '最低值',
+                        data: extendedMetricData.map(d => d[`${selectedExtendedMetric}_min`]),
+                        borderColor: CHART_COLORS[3],
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 1.5,
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                      mode: 'index',
+                      intersect: false,
+                    },
+                    plugins: {
+                      legend: {
+                        position: 'top',
+                        labels: {
+                          usePointStyle: true,
+                          padding: 15,
+                          font: { size: 12 },
+                        },
+                      },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y} ${EXTENDED_METRICS.find(m => m.key === selectedExtendedMetric)?.unit || ''}`,
+                        },
+                      },
+                    },
+                    scales: {
+                      y: {
+                        grid: {
+                          color: 'rgba(0,0,0,0.05)',
+                        },
+                      },
+                      x: {
+                        grid: {
+                          display: false,
+                        },
+                        ticks: {
+                          maxRotation: 45,
+                          minRotation: 45,
+                          maxTicksLimit: 12,
+                        },
+                      },
+                    },
+                  }}
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span>📋</span>扩展指标月度统计表
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="text-left px-3 py-3 font-semibold text-slate-700 rounded-l-lg">月份</th>
+                    {EXTENDED_METRICS.slice(0, 5).map(m => (
+                      <th key={m.key} className="text-center px-3 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                        {m.icon} {m.label}
+                      </th>
+                    ))}
+                    <th className="text-center px-3 py-3 font-semibold text-slate-700 rounded-r-lg whitespace-nowrap">
+                      🧊 露点温度
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const monthlyData = {};
+                    extendedMetricData.forEach(d => {
+                      const month = d.date?.substring(0, 7);
+                      if (!month) return;
+                      if (!monthlyData[month]) monthlyData[month] = [];
+                      monthlyData[month].push(d);
+                    });
+                    
+                    return Object.entries(monthlyData).map(([month, days]) => {
+                      const stats = {};
+                      EXTENDED_METRICS.forEach(m => {
+                        const values = days.map(d => d[`${m.key}_avg`]).filter(v => v != null && !isNaN(v));
+                        stats[m.key] = values.length 
+                          ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1)
+                          : '-';
+                      });
+                      
+                      return (
+                        <tr key={month} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="px-3 py-3 font-medium text-slate-800">{month}</td>
+                          {EXTENDED_METRICS.slice(0, 5).map(m => (
+                            <td key={m.key} className="px-3 py-3 text-center text-slate-700">
+                              {stats[m.key]} {m.unit}
+                            </td>
+                          ))}
+                          <td className="px-3 py-3 text-center text-slate-700">
+                            {stats['dew_point']} °C
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>

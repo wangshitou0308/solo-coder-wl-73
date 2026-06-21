@@ -38,6 +38,8 @@ export default function EventDetail() {
   const [device, setDevice] = useState(null);
   const [sourceStats, setSourceStats] = useState([]);
   const [dailyComparison, setDailyComparison] = useState([]);
+  const [relatedObservations, setRelatedObservations] = useState([]);
+  const [triggerRules, setTriggerRules] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -88,6 +90,20 @@ export default function EventDetail() {
         });
         const days = Object.values(fcByDate).sort((a, b) => a.date.localeCompare(b.date));
         setDailyComparison(days);
+
+        if (ev.device_id && ev.start_time && ev.end_time) {
+          const obs = await api.observations.list({
+            device_id: ev.device_id,
+            start_time: ev.start_time,
+            end_time: ev.end_time,
+          }).catch(() => []);
+          setRelatedObservations(obs || []);
+        }
+
+        if (ev.candidate_id) {
+          const thresholds = await api.alerts.thresholds().catch(() => []);
+          setTriggerRules(thresholds.filter(t => t.enabled));
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -226,6 +242,93 @@ export default function EventDetail() {
           </div>
         </div>
       </div>
+
+      {(event.detection_rule || triggerRules.length > 0) && (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span>⚙️</span>触发规则
+          </h2>
+          {event.detection_rule && (
+            <div className="bg-slate-50 rounded-lg p-4 mb-4">
+              <div className="text-sm text-slate-600">
+                <span className="font-medium text-slate-800">检测规则：</span>
+                {event.detection_rule}
+              </div>
+            </div>
+          )}
+          {triggerRules.length > 0 && (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-left px-4 py-3 font-medium text-slate-600">规则名称</th>
+                    <th className="text-center px-4 py-3 font-medium text-slate-600">监测指标</th>
+                    <th className="text-center px-4 py-3 font-medium text-slate-600">触发条件</th>
+                    <th className="text-center px-4 py-3 font-medium text-slate-600">阈值</th>
+                    <th className="text-center px-4 py-3 font-medium text-slate-600">预警等级</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {triggerRules.map(rule => (
+                    <tr key={rule.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-medium text-slate-800">{rule.name}</td>
+                      <td className="px-4 py-3 text-center text-slate-600">{rule.metric}</td>
+                      <td className="px-4 py-3 text-center text-slate-600">{rule.operator}</td>
+                      <td className="px-4 py-3 text-center font-medium text-slate-800">{rule.value}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-medium ${
+                          rule.severity === 'danger' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {rule.severity === 'danger' ? '危险' : '警告'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {relatedObservations.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span>📊</span>关联观测数据
+            <span className="text-sm font-normal text-slate-500 ml-2">（共 {relatedObservations.length} 条）</span>
+          </h2>
+          <div className="overflow-x-auto rounded-lg border border-slate-200 max-h-80 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-slate-50">
+                <tr className="border-b border-slate-200">
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">时间</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">温度</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">湿度</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">风速</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">降水</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">气压</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">体感温度</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {relatedObservations.map(obs => (
+                  <tr key={obs.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap font-mono text-xs">
+                      {dayjs(obs.record_time).format('MM-DD HH:mm')}
+                    </td>
+                    <td className="px-4 py-2.5 text-center text-slate-700">{obs.temperature}°C</td>
+                    <td className="px-4 py-2.5 text-center text-slate-700">{obs.humidity}%</td>
+                    <td className="px-4 py-2.5 text-center text-slate-700">{obs.wind_speed} m/s</td>
+                    <td className="px-4 py-2.5 text-center text-slate-700">{obs.precipitation} mm</td>
+                    <td className="px-4 py-2.5 text-center text-slate-700">{obs.pressure} hPa</td>
+                    <td className="px-4 py-2.5 text-center text-slate-700">{obs.feels_like ?? '-'}°C</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
         <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">

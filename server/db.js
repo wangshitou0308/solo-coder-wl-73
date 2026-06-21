@@ -10,6 +10,10 @@ let data = {
   forecast_sources: [],
   forecasts: [],
   extreme_events: [],
+  alert_thresholds: [],
+  candidate_events: [],
+  scoring_weights: [],
+  forecast_ratings: [],
   counters: {}
 };
 
@@ -57,6 +61,24 @@ function initDB() {
     { id: 4, name: '墨迹天气', description: '商业天气预报服务', url: 'https://www.moji.com', created_at: localNow() },
   ];
   data.counters.forecast_sources = 4;
+
+  data.alert_thresholds = [
+    { id: 1, name: '高温预警', metric: 'temperature', operator: '>=', value: 35, severity: 'warning', enabled: true, created_at: localNow() },
+    { id: 2, name: '低温预警', metric: 'temperature', operator: '<=', value: -10, severity: 'warning', enabled: true, created_at: localNow() },
+    { id: 3, name: '暴雨预警', metric: 'precipitation', operator: '>=', value: 50, severity: 'danger', enabled: true, created_at: localNow() },
+    { id: 4, name: '大风预警', metric: 'wind_speed', operator: '>=', value: 17, severity: 'warning', enabled: true, created_at: localNow() },
+    { id: 5, name: '强降水预警', metric: 'precipitation', operator: '>=', value: 10, severity: 'warning', time_window_hours: 1, enabled: true, created_at: localNow() },
+    { id: 6, name: '气压骤降预警', metric: 'pressure', operator: 'drop', value: 5, severity: 'warning', time_window_hours: 3, enabled: true, created_at: localNow() },
+    { id: 7, name: '温度突变', metric: 'temperature', operator: 'change', value: 8, severity: 'warning', time_window_hours: 3, enabled: true, created_at: localNow() },
+    { id: 8, name: '降水突增', metric: 'precipitation', operator: 'increase', value: 5, severity: 'warning', time_window_hours: 1, enabled: true, created_at: localNow() },
+  ];
+  data.counters.alert_thresholds = 8;
+
+  data.scoring_weights = [
+    { id: 1, name: '默认权重配置', temp_weight: 0.4, precip_weight: 0.35, wind_weight: 0.25, is_default: true, created_at: localNow() },
+  ];
+  data.counters.scoring_weights = 1;
+
   save();
 }
 

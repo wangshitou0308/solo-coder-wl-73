@@ -6,11 +6,15 @@ import {
   LinearScale,
   BarElement,
   ArcElement,
+  PointElement,
+  LineElement,
+  RadialLinearScale,
+  Filler,
   Tooltip,
   Legend,
   Title,
 } from 'chart.js';
-import { Bar, Pie } from 'react-chartjs-2';
+import { Bar, Pie, Radar } from 'react-chartjs-2';
 import api from '../api.js';
 
 ChartJS.register(
@@ -18,6 +22,10 @@ ChartJS.register(
   LinearScale,
   BarElement,
   ArcElement,
+  PointElement,
+  LineElement,
+  RadialLinearScale,
+  Filler,
   Tooltip,
   Legend,
   Title
@@ -34,6 +42,8 @@ export default function Forecasts() {
 
   const [forecastList, setForecastList] = useState([]);
   const [comparisonData, setComparisonData] = useState([]);
+  const [radarData, setRadarData] = useState([]);
+  const [selectedRadarSource, setSelectedRadarSource] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [forecastForm, setForecastForm] = useState({
@@ -69,7 +79,10 @@ export default function Forecasts() {
     if (activeTab === 'list') {
       loadForecasts();
     }
-  }, [selectedDevice, selectedSource, startDate, endDate, activeTab]);
+    if (selectedDevice && activeTab === 'scoring') {
+      loadRadarData();
+    }
+  }, [selectedDevice, selectedSource, startDate, endDate, activeTab, selectedRadarSource]);
 
   async function loadInitial() {
     try {
@@ -120,6 +133,21 @@ export default function Forecasts() {
       if (selectedSource) params.source_id = selectedSource;
       const data = await api.forecasts.comparison(params);
       setComparisonData(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadRadarData() {
+    if (!selectedDevice) return;
+    setLoading(true);
+    try {
+      const params = { device_id: selectedDevice };
+      if (selectedRadarSource) params.source = selectedRadarSource;
+      const data = await api.forecasts.radarData(params);
+      setRadarData(data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -207,6 +235,7 @@ export default function Forecasts() {
     { key: 'entry', label: '录入预报', icon: '📝' },
     { key: 'simulate', label: '模拟预报', icon: '🤖' },
     { key: 'comparison', label: '对比验证', icon: '📊' },
+    { key: 'scoring', label: '评分详情', icon: '⭐' },
     { key: 'list', label: '预报列表', icon: '📋' },
   ];
 
@@ -649,6 +678,159 @@ export default function Forecasts() {
             </div>
           )}
 
+          {activeTab === 'scoring' && (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-4 mb-6">
+                <div className="flex-1 min-w-64">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">预报来源</label>
+                  <select
+                    value={selectedRadarSource}
+                    onChange={e => setSelectedRadarSource(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                  >
+                    <option value="">全部来源</option>
+                    {sources.map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={loadRadarData}
+                  disabled={loading || !selectedDevice}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed mt-6 flex items-center gap-2"
+                >
+                  <span>🔄</span> 刷新
+                </button>
+              </div>
+
+              {loading ? (
+                <div className="py-16 text-center text-slate-500">加载中...</div>
+              ) : radarData.length === 0 ? (
+                <div className="py-16 text-center text-slate-400">
+                  <div className="text-5xl mb-3">📊</div>
+                  <p>暂无评分数据，请先录入预报和观测数据</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                      <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <span>🎯</span> 来源能力雷达图
+                      </h4>
+                      <div className="h-80">
+                        <Radar data={buildRadarChart(radarData)} options={radarOptions} />
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                      <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <span>📈</span> 综合评分对比
+                      </h4>
+                      <div className="space-y-4">
+                        {radarData.map((item, idx) => (
+                          <div key={idx} className="bg-white rounded-lg p-4 border border-slate-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="font-semibold text-slate-800">{item.source}</div>
+                              <span className={`inline-flex px-3 py-1 rounded-full text-sm font-bold ${getScoreBadgeClass(item.overall.composite_score / 100)}`}>
+                                {formatScore(item.overall.composite_score)}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3 text-sm">
+                              <div className="text-center">
+                                <div className="text-xs text-slate-500 mb-1">🌡️ 温度</div>
+                                <div className="font-semibold text-orange-600">
+                                  {formatScore(item.overall.temp_accuracy)}
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-xs text-slate-500 mb-1">💧 降水</div>
+                                <div className="font-semibold text-blue-600">
+                                  {formatScore(item.overall.precip_accuracy)}
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-xs text-slate-500 mb-1">💨 风速</div>
+                                <div className="font-semibold text-cyan-600">
+                                  {formatScore(item.overall.wind_accuracy)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-5 border border-slate-200">
+                    <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                      <span>📋</span> 详细评分表
+                    </h4>
+                    <div className="overflow-x-auto rounded-lg border border-slate-200">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-50">
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">预报来源</th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">样本数</th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">🌡️ 温度</th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">💧 降水</th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">💨 风速</th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">☀️ 晴天</th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">🌧️ 雨天</th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">💨 大风</th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">⭐ 综合</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {radarData.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50">
+                              <td className="px-4 py-3 font-medium text-slate-800">{item.source}</td>
+                              <td className="px-4 py-3 text-center text-slate-600">{item.sample_count}</td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-2.5 py-1 rounded text-xs font-semibold ${getScoreBg(item.overall.temp_accuracy)} ${getScoreColor(item.overall.temp_accuracy)}`}>
+                                  {formatScore(item.overall.temp_accuracy)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-2.5 py-1 rounded text-xs font-semibold ${getScoreBg(item.overall.precip_accuracy)} ${getScoreColor(item.overall.precip_accuracy)}`}>
+                                  {formatScore(item.overall.precip_accuracy)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-2.5 py-1 rounded text-xs font-semibold ${getScoreBg(item.overall.wind_accuracy)} ${getScoreColor(item.overall.wind_accuracy)}`}>
+                                  {formatScore(item.overall.wind_accuracy)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-2.5 py-1 rounded text-xs font-semibold ${getScoreBg(item.weather_performance['晴天']?.composite_score)} ${getScoreColor(item.weather_performance['晴天']?.composite_score)}`}>
+                                  {formatScore(item.weather_performance['晴天']?.composite_score)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-2.5 py-1 rounded text-xs font-semibold ${getScoreBg(item.weather_performance['雨天']?.composite_score)} ${getScoreColor(item.weather_performance['雨天']?.composite_score)}`}>
+                                  {formatScore(item.weather_performance['雨天']?.composite_score)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-2.5 py-1 rounded text-xs font-semibold ${getScoreBg(item.weather_performance['大风']?.composite_score)} ${getScoreColor(item.weather_performance['大风']?.composite_score)}`}>
+                                  {formatScore(item.weather_performance['大风']?.composite_score)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-3 py-1 rounded text-sm font-bold ${getScoreBg(item.overall.composite_score)} ${getScoreColor(item.overall.composite_score)}`}>
+                                  {formatScore(item.overall.composite_score)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {activeTab === 'list' && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -883,3 +1065,98 @@ function buildPrecipChart(data) {
     }],
   };
 }
+
+const formatScore = (val) => {
+  if (val == null || isNaN(val)) return '-';
+  return Number(val).toFixed(1);
+};
+
+const getScoreColor = (val) => {
+  if (val == null || isNaN(val)) return 'text-slate-400';
+  const v = Number(val);
+  if (v >= 80) return 'text-green-600';
+  if (v >= 60) return 'text-yellow-600';
+  return 'text-red-600';
+};
+
+const getScoreBg = (val) => {
+  if (val == null || isNaN(val)) return 'bg-slate-100';
+  const v = Number(val);
+  if (v >= 80) return 'bg-green-50';
+  if (v >= 60) return 'bg-yellow-50';
+  return 'bg-red-50';
+};
+
+const getScoreBadgeClass = (val) => {
+  if (val == null || isNaN(val)) return 'bg-slate-100 text-slate-500';
+  const v = Number(val);
+  if (v >= 0.8) return 'bg-green-100 text-green-700';
+  if (v >= 0.6) return 'bg-yellow-100 text-yellow-700';
+  return 'bg-red-100 text-red-700';
+};
+
+const radarColors = [
+  { bg: 'rgba(59, 130, 246, 0.2)', border: 'rgb(59, 130, 246)' },
+  { bg: 'rgba(16, 185, 129, 0.2)', border: 'rgb(16, 185, 129)' },
+  { bg: 'rgba(245, 158, 11, 0.2)', border: 'rgb(245, 158, 11)' },
+  { bg: 'rgba(239, 68, 68, 0.2)', border: 'rgb(239, 68, 68)' },
+];
+
+function buildRadarChart(data) {
+  if (!data || data.length === 0) return null;
+
+  const labels = data[0].radar_labels || ['温度', '降水', '风速', '晴天', '雨天', '大风'];
+
+  return {
+    labels,
+    datasets: data.map((item, idx) => ({
+      label: item.source,
+      data: item.radar_values,
+      backgroundColor: radarColors[idx % radarColors.length].bg,
+      borderColor: radarColors[idx % radarColors.length].border,
+      borderWidth: 2,
+      pointBackgroundColor: radarColors[idx % radarColors.length].border,
+      pointBorderColor: '#fff',
+      pointHoverBackgroundColor: '#fff',
+      pointHoverBorderColor: radarColors[idx % radarColors.length].border,
+    })),
+  };
+}
+
+const radarOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    r: {
+      min: 0,
+      max: 100,
+      ticks: {
+        stepSize: 20,
+        color: '#64748b',
+        backdropColor: 'transparent',
+      },
+      grid: {
+        color: '#e2e8f0',
+      },
+      angleLines: {
+        color: '#e2e8f0',
+      },
+      pointLabels: {
+        color: '#475569',
+        font: {
+          size: 12,
+          weight: '500',
+        },
+      },
+    },
+  },
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        color: '#475569',
+        padding: 15,
+      },
+    },
+  },
+};

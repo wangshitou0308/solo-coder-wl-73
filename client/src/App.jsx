@@ -7,6 +7,11 @@ import Forecasts from './pages/Forecasts.jsx';
 import Events from './pages/Events.jsx';
 import EventDetail from './pages/EventDetail.jsx';
 import Statistics from './pages/Statistics.jsx';
+import AlertThresholds from './pages/AlertThresholds.jsx';
+import Candidates from './pages/Candidates.jsx';
+import ScoringWeights from './pages/ScoringWeights.jsx';
+import ForecastRanking from './pages/ForecastRanking.jsx';
+import SpecialAnalysis from './pages/SpecialAnalysis.jsx';
 
 function Sidebar() {
   const navItems = [
@@ -14,7 +19,12 @@ function Sidebar() {
     { path: '/devices', label: '设备管理', icon: '📡' },
     { path: '/observations', label: '观测数据', icon: '🌡️' },
     { path: '/forecasts', label: '预报验证', icon: '🌤️' },
+    { path: '/forecast-ranking', label: '预报排行', icon: '🏆' },
+    { path: '/special-analysis', label: '专项分析', icon: '📊' },
     { path: '/events', label: '极端事件', icon: '⛈️' },
+    { path: '/candidates', label: '候选事件', icon: '🔍' },
+    { path: '/alerts', label: '预警阈值', icon: '⚠️' },
+    { path: '/scoring-weights', label: '评分权重', icon: '⚖️' },
     { path: '/statistics', label: '统计分析', icon: '📈' },
   ];
 
@@ -65,8 +75,13 @@ export default function App() {
             <Route path="/devices/:id" element={<DeviceDetail />} />
             <Route path="/observations" element={<Observations />} />
             <Route path="/forecasts" element={<Forecasts />} />
+            <Route path="/forecast-ranking" element={<ForecastRanking />} />
+            <Route path="/special-analysis" element={<SpecialAnalysis />} />
             <Route path="/events" element={<Events />} />
             <Route path="/events/:id" element={<EventDetail />} />
+            <Route path="/candidates" element={<Candidates />} />
+            <Route path="/alerts" element={<AlertThresholds />} />
+            <Route path="/scoring-weights" element={<ScoringWeights />} />
             <Route path="/statistics" element={<Statistics />} />
           </Routes>
         </main>

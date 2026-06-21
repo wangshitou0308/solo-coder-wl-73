@@ -25,6 +25,7 @@ export default function Events() {
   const [filterType, setFilterType] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [riskLevel, setRiskLevel] = useState(null);
   const [formData, setFormData] = useState({
     event_type: '暴雨',
     start_time: '',
@@ -38,12 +39,14 @@ export default function Events() {
   });
 
   const fetchData = async () => {
-    const [eventsData, devicesData] = await Promise.all([
+    const [eventsData, devicesData, riskData] = await Promise.all([
       api.events.list({ event_type: filterType === 'all' ? undefined : filterType }),
       api.devices.list(),
+      api.alerts.riskLevel().catch(() => null),
     ]);
     setEvents(eventsData);
     setDevices(devicesData);
+    setRiskLevel(riskData);
   };
 
   useEffect(() => {
@@ -110,6 +113,16 @@ export default function Events() {
     setShowModal(true);
   };
 
+  const getRiskLevelInfo = (level) => {
+    const info = {
+      low: { label: '低风险', color: 'bg-green-500', bgColor: 'bg-green-50', textColor: 'text-green-700', icon: '✅' },
+      medium: { label: '中风险', color: 'bg-yellow-500', bgColor: 'bg-yellow-50', textColor: 'text-yellow-700', icon: '⚠️' },
+      high: { label: '高风险', color: 'bg-orange-500', bgColor: 'bg-orange-50', textColor: 'text-orange-700', icon: '🔶' },
+      extreme: { label: '极端风险', color: 'bg-red-500', bgColor: 'bg-red-50', textColor: 'text-red-700', icon: '🚨' },
+    };
+    return info[level] || info.low;
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -126,6 +139,44 @@ export default function Events() {
           <span>➕</span>添加事件
         </button>
       </div>
+
+      {riskLevel && (
+        <div className={`${getRiskLevelInfo(riskLevel.level).bgColor} border rounded-xl p-5 mb-6`}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className={`${getRiskLevelInfo(riskLevel.level).color} w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-md`}>
+                {getRiskLevelInfo(riskLevel.level).icon}
+              </div>
+              <div>
+                <div className={`text-lg font-bold ${getRiskLevelInfo(riskLevel.level).textColor}`}>
+                  当前风险等级：{getRiskLevelInfo(riskLevel.level).label}
+                </div>
+                <div className="text-sm text-slate-600 mt-1">
+                  风险评分：{riskLevel.overall_score}/100
+                  {riskLevel.triggered_alerts && riskLevel.triggered_alerts.length > 0 && (
+                    <span className="ml-3">触发预警：{riskLevel.triggered_alerts.length} 条</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/candidates')}
+              className="px-4 py-2 bg-white/80 hover:bg-white rounded-lg transition-colors text-sm font-medium shadow-sm flex items-center gap-2"
+            >
+              <span>🔍</span>查看候选事件
+            </button>
+          </div>
+          {riskLevel.triggered_alerts && riskLevel.triggered_alerts.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {riskLevel.triggered_alerts.map((alert, idx) => (
+                <span key={idx} className={`px-3 py-1 rounded-full text-xs font-medium ${getRiskLevelInfo(riskLevel.level).bgColor} ${getRiskLevelInfo(riskLevel.level).textColor} border`}>
+                  {alert.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
         <div className="flex flex-wrap gap-2">

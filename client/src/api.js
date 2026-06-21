@@ -23,6 +23,7 @@ export default {
     remove: id => api.delete(`/devices/${id}`),
     addCalibration: (id, data) => api.post(`/devices/${id}/calibrations`, data),
     removeCalibration: id => api.delete(`/devices/calibrations/${id}`),
+    sensorMatrix: id => api.get(`/devices/${id}/sensor-matrix`),
   },
   observations: {
     list: params => api.get('/observations', { params }),
@@ -37,6 +38,7 @@ export default {
     },
     update: (id, data) => api.put(`/observations/${id}`, data),
     remove: id => api.delete(`/observations/${id}`),
+    extendedTrend: params => api.get('/observations/extended-trend', { params }),
   },
   forecasts: {
     sources: () => api.get('/forecasts/sources'),
@@ -47,6 +49,10 @@ export default {
     update: (id, data) => api.put(`/forecasts/${id}`, data),
     remove: id => api.delete(`/forecasts/${id}`),
     comparison: params => api.get('/forecasts/comparison', { params }),
+    scoring: params => api.get('/scoring/ranking', { params }),
+    ranking: params => api.get('/scoring/ranking', { params }),
+    specialAnalysis: params => api.get('/scoring/special-analysis', { params }),
+    radarData: params => api.get('/scoring/radar-data', { params }),
   },
   events: {
     list: params => api.get('/events', { params }),
@@ -54,6 +60,26 @@ export default {
     create: data => api.post('/events', data),
     update: (id, data) => api.put(`/events/${id}`, data),
     remove: id => api.delete(`/events/${id}`),
+  },
+  alerts: {
+    thresholds: () => api.get('/alerts/thresholds'),
+    updateThreshold: (id, data) => api.put(`/alerts/thresholds/${id}`, data),
+    createThreshold: data => api.post('/alerts/thresholds', data),
+    deleteThreshold: id => api.delete(`/alerts/thresholds/${id}`),
+    check: params => api.get('/alerts/check', { params }),
+    riskLevel: params => api.get('/alerts/risk-level', { params }),
+  },
+  candidates: {
+    list: params => api.get('/candidates', { params }),
+    promote: id => api.post(`/candidates/${id}/promote`),
+    dismiss: id => api.post(`/candidates/${id}/dismiss`),
+    runDetection: params => api.post('/candidates/detect', params),
+  },
+  scoring: {
+    weights: () => api.get('/scoring/weights'),
+    updateWeights: (id, data) => api.put(`/scoring/weights/${id}`, data),
+    createWeights: data => api.post('/scoring/weights', data),
+    setDefault: id => api.post(`/scoring/weights/${id}/default`),
   },
   stats: {
     overview: params => api.get('/stats/overview', { params }),

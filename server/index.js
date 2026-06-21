@@ -8,6 +8,9 @@ const forecastsRouter = require('./routes/forecasts');
 const eventsRouter = require('./routes/events');
 const statsRouter = require('./routes/stats');
 const reportsRouter = require('./routes/reports');
+const alertsRouter = require('./routes/alerts');
+const candidatesRouter = require('./routes/candidates');
+const scoringRouter = require('./routes/scoring');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +26,9 @@ app.use('/api/forecasts', forecastsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/alerts', alertsRouter);
+app.use('/api/candidates', candidatesRouter);
+app.use('/api/scoring', scoringRouter);
 
 if (process.env.NODE_ENV === 'production') {
   const dist = path.join(__dirname, '..', 'client', 'dist');
